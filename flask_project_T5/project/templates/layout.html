@@ -25,10 +25,10 @@
                     <!-- Navbar Right Side -->
                     <div class="usernavbar">
                       <!-- Search Bar -->
-                      <form class="defaultnavbar" method="POST" action="{{ url_for('search')}}">
+                      <form class="navbar-search" method="POST" action="{{ url_for('search')}}">
                         {{ form.hidden_tag() }}
-                        <input type="search" placeholder="Search Items" aria-label="Search" name="searched">
-                        <button type="submit">Search</button>
+                        <input class="navbar-search" type="search" placeholder="Search Items" aria-label="Search" name="searched">
+                        <button class = "search-button" type="submit">Search</button>
                       </form>
                         {% if current_user.is_authenticated %}
                         <a href="{{ url_for('new_post') }}">Sell</a>
