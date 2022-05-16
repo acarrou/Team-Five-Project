@@ -4,13 +4,19 @@ from PIL import Image
 from flask import render_template, url_for, flash, redirect, request, abort
 from project import app, db, bcrypt
 from project.forms import (RegistrationForm, LoginForm, UpdateAccountForm, PostForm, SearchForm)
-from project.models import User, Post
+from project.models import User, Post, CartItem
 from flask_login import login_user, current_user, logout_user, login_required
 
 
 @app.route("/")
 def home():
     return render_template('home.html')
+
+
+
+@app.route("/checkout")
+def checkout():
+    return render_template('checkout.html')
 
 @app.route("/posts")
 def posts():
