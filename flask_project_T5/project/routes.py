@@ -4,9 +4,89 @@ from PIL import Image
 from flask import render_template, url_for, flash, redirect, request, abort
 from project import app, db, bcrypt
 from project.forms import (RegistrationForm, LoginForm, UpdateAccountForm, PostForm, SearchForm)
-from project.models import User, Post, CartItem
+from project.models import User, Post
 from flask_login import login_user, current_user, logout_user, login_required
+import stripe
 
+app.config['STRIPE_PUBLIC_KEY'] = 'pk_test_51KzDsRGP6AuS3BWDr9gBCQZ9Blv0eE9hEbhS0RiY6OyDu7Z1MCvYIFNX4oM9YPat8lmNOsXVsRZYB2LYMy9SJfGg00SoiNXlHN'
+app.config['STRIPE_SECRET_KEY'] = 'sk_test_51KzDsRGP6AuS3BWDpzvoLfbWZ6sBDqxbQhrZutddiiYkCHFcVPEZ3jQLjTrNnNbMAJn5H3qRYGd7WlTwlkHu6wl500sNhDnpZH'
+
+stripe.api_key = app.config['STRIPE_SECRET_KEY']
+
+@app.route('/checkout')
+def index():
+    '''
+    session = stripe.checkout.Session.create(
+        payment_method_types=['card'],
+        line_items=[{
+            'price': 'price_1L0IlHGP6AuS3BWDt1HzeSBh',
+            'quantity': 1,
+        }],
+        mode='payment',
+        success_url=url_for('thanks', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+        cancel_url=url_for('checkout', _external=True),
+    )
+    '''
+    return render_template(
+        'checkout.html', 
+       # checkout_session_id=session['id'], 
+       # checkout_public_key=app.config['STRIPE_PUBLIC_KEY']
+    )
+
+@app.route('/stripe_pay')
+def stripe_pay():
+    session = stripe.checkout.Session.create(
+        payment_method_types=['card'],
+        line_items=[{
+            'price': 'price_1L0IlHGP6AuS3BWDt1HzeSBh',
+            'quantity': 1,
+        }],
+        mode='payment',
+        success_url=url_for('thanks', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+        cancel_url=url_for('index', _external=True),
+    )
+    return {
+        'checkout_session_id': session['id'], 
+        'checkout_public_key': app.config['STRIPE_PUBLIC_KEY']
+    }
+
+@app.route('/thanks')
+def thanks():
+    return render_template('thanks.html')
+
+@app.route('/stripe_webhook', methods=['POST'])
+def stripe_webhook():
+    print('WEBHOOK CALLED')
+
+    if request.content_length > 1024 * 1024:
+        print('REQUEST TOO BIG')
+        abort(400)
+    payload = request.get_data()
+    sig_header = request.environ.get('HTTP_STRIPE_SIGNATURE')
+    endpoint_secret = 'whsec_c6ada773f8b6ca0ff6a062047aa205496db85ed1f70edc2c2762a1208e562948'
+    event = None
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        # Invalid payload
+        print('INVALID PAYLOAD')
+        return {}, 400
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        print('INVALID SIGNATURE')
+        return {}, 400
+
+    # Handle the checkout.session.completed event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        print(session)
+        line_items = stripe.checkout.Session.list_line_items(session['id'], limit=1)
+        print(line_items['data'][0]['description'])
+
+    return {}
 
 
 @app.route("/")
@@ -15,9 +95,6 @@ def home():
 
 
 
-@app.route("/checkout")
-def checkout():
-    return render_template('checkout.html')
 
 @app.route("/posts")
 def posts():
@@ -218,24 +295,25 @@ def delete_post(post_id):
 
 
 
+
+
+cart_items = []
+item_posts = []
 @app.route("/post/<int:post_id>/add-to-cart", methods=['POST'])
 @login_required
 def add_cart(post_id):
-    cartitems = CartItem.query.get_or_404(post_id)
-    db.session.add(cartitems)
-    db.session.commit()
-    page = request.args.get('page', 1, type=int)
-    posts = Post.query.order_by(Post.date_posted.desc()).paginate(page=page, per_page=5)
+    cart_items.append(post_id)
+    for i in cart_items:
+        post = Post.query.get_or_404(i)
     flash('Added Item to Cart!', 'success')
-    return render_template('cart.html', cartitems = cartitems, posts = posts)
-
+    return render_template('cart.html', cart=cart_items, post=post)
 
 @app.route("/cart")
 @login_required
 def cart():
-    return render_template('cart.html', title='Cart')
-
-
+    for i in cart_items:
+        post = Post.query.get_or_404(i)
+    return render_template('cart.html', cart=cart_items, post=post)
 
 
 
@@ -251,3 +329,4 @@ def user_posts(username):
         .order_by(Post.date_posted.desc())\
         .paginate(page=page, per_page=5)
     return render_template('user_posts.html', posts=posts, user=user)
+

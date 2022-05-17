@@ -47,8 +47,9 @@ class Post(db.Model):
         return f"Post('{self.title}', '{self.date_posted}')"
 
 
-
-
-
 class CartItem(db.Model):
     id = db.Column(db.Integer, primary_key = True)
+    itle = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    item_price = db.Column(db.Integer, nullable=False)
+    item_image = db.Column(db.String(20), nullable=False, default='default.jpg')
