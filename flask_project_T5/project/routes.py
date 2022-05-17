@@ -8,6 +8,7 @@ from project.models import User, Post, CartItem
 from flask_login import login_user, current_user, logout_user, login_required
 
 
+
 @app.route("/")
 def home():
     return render_template('home.html')
@@ -46,10 +47,7 @@ def search():
 def about():
     return render_template('about.html', title='About')
 
-@app.route("/cart")
-@login_required
-def cart():
-    return render_template('cart.html', title='Cart')
+
 
 
 @app.route("/signup", methods=['GET', 'POST'])
@@ -218,13 +216,31 @@ def delete_post(post_id):
     flash('Your post has been deleted!', 'success')
     return render_template('home.html')
 
+
+
 @app.route("/post/<int:post_id>/add-to-cart", methods=['POST'])
 @login_required
 def add_cart(post_id):
-
-
+    cartitems = CartItem.query.get_or_404(post_id)
+    db.session.add(cartitems)
+    db.session.commit()
+    page = request.args.get('page', 1, type=int)
+    posts = Post.query.order_by(Post.date_posted.desc()).paginate(page=page, per_page=5)
     flash('Added Item to Cart!', 'success')
-    return render_template('cart.html')
+    return render_template('cart.html', cartitems = cartitems, posts = posts)
+
+
+@app.route("/cart")
+@login_required
+def cart():
+    return render_template('cart.html', title='Cart')
+
+
+
+
+
+
+
 
 
 @app.route("/user/<string:username>")
